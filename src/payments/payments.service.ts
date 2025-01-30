@@ -1,13 +1,16 @@
-import { Injectable } from '@nestjs/common';
-import { envs } from 'src/config';
+import { Inject, Injectable, Logger } from '@nestjs/common';
+import { envs, NATS_SERVERS } from 'src/config';
 import Stripe from 'stripe';
 import { PaymentSessionDto } from './dto/payment-session.dto';
 import e, { Request, Response } from 'express';
+import { ClientProxy } from '@nestjs/microservices';
 
 @Injectable()
 export class PaymentsService {
     private readonly stripe = new Stripe(envs.STRIPE_SECRET_KEY);
+    private readonly logger = new Logger('PaymentsService');
 
+ 
     async createPaymentSession(paymentSession: PaymentSessionDto) {
         const { currency, items, orderId } = paymentSession;
         const lineItems = items.map(item => {
@@ -17,7 +20,7 @@ export class PaymentsService {
                     product_data: {
                         name: item.name,
                     },
-                    unit_amount: item.price * 100, //20 dolares
+                    unit_amount: Math.round(item.price * 100), //20 dolares
                 },
                 quantity: item.quantity,
             }
@@ -47,8 +50,12 @@ export class PaymentsService {
             success_url: envs.STRIPE_SUCCESS_URL,
             cancel_url: envs.STRIPE_CANCEL_URL,
         })
-        return session;
-
+        // return session;
+        return {
+            cancelUrl: session.cancel_url,
+            successUrl: session.success_url,
+            url: session.url,
+          }
 
     }
     async stripeWebhook(req: Request, res: Response) {

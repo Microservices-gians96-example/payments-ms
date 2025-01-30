@@ -23,3 +23,8 @@ https://dashboard.stripe.com/test/webhooks
 ## Para usar la version real cuando la aplicacion este en produccion, podemos usar el siguiente enlace:
 
 https://dashboard.hookdeck.com/
+
+## Para habilitar el CLI para los webhooks
+```
+hookdeck listen 3003 stripe-to-localhost 
+```
