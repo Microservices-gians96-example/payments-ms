@@ -10,7 +10,8 @@ export class PaymentsService {
     private readonly stripe = new Stripe(envs.STRIPE_SECRET_KEY);
     private readonly logger = new Logger('PaymentsService');
 
- 
+    constructor(@Inject(NATS_SERVERS) private readonly client: ClientProxy) { }
+
     async createPaymentSession(paymentSession: PaymentSessionDto) {
         const { currency, items, orderId } = paymentSession;
         const lineItems = items.map(item => {
@@ -55,17 +56,12 @@ export class PaymentsService {
             cancelUrl: session.cancel_url,
             successUrl: session.success_url,
             url: session.url,
-          }
+        }
 
     }
     async stripeWebhook(req: Request, res: Response) {
         const sig = req.headers['stripe-signature'];
         let event: Stripe.Event;
-
-        // Testing webhooks locally
-        // const endpointSecret = envs.STRIPE_ENDPOINT_SECRET;
-
-        // Real
         const endpointSecret = envs.STRIPE_ENDPOINT_SECRET;
 
         try {
@@ -78,10 +74,14 @@ export class PaymentsService {
         switch (event.type) {
             case 'charge.succeeded':
                 const chargeSucceeded = event.data.object;
-                // console.log({ event });
-                console.log({ metadata: chargeSucceeded.metadata, orderId: chargeSucceeded.metadata.orderId });
+                const payload = {
+                    stripePaymentId: chargeSucceeded.id,
+                    orderId: chargeSucceeded.metadata.orderId,
+                    receipUrl: chargeSucceeded.receipt_url,
+                };
 
-                // Then define and call a function to handle the event charge.succeeded
+                // this.logger.log(`Payment succeeded: ${JSON.stringify(payload)}`);
+                this.client.emit('payment-succeeded', payload);
                 break;
             // ... handle other event types
             default:
